@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5">
+  <title>COMP BOARD · vlr + tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg: #0b0d10;
+      --panel: #14181e;
+      --panel-2: #1c2128;
+      --line: #2a303a;
+      --text: #e9edf2;
+      --muted: #8b95a8;
+      --accent: #ff4655;
+      --accent-dim: #ff465522;
+      --good: #3fe1b0;
+      --good-dim: #3fe1b022;
+      --warn: #f9b84a;
+      --warn-dim: #f9b84a22;
+      --radius: 12px;
+      --shadow: 0 8px 24px rgba(0,0,0,0.6);
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .app {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      padding: 20px 18px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      box-shadow: var(--shadow);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      max-height: 100vh;
+      overflow-y: auto;
+    }
+
+    .brand {
+      font-family: 'Chakra Petch', sans-serif;
+      font-weight: 700;
+      font-size: 22px;
+      letter-spacing: 0.3px;
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .brand span { color: var(--accent); }
+    .brand small {
+      font-family: 'IBM Plex Mono', monospace;
+      font-weight: 400;
+      font-size: 11px;
+      color: var(--muted);
+      margin-left: 2px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .field label {
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+    .field input, .field select {
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 13px;
+      width: 100%;
+      transition: border 0.2s;
+    }
+    .field input:focus, .field select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-dim);
+    }
+
+    .row-flex {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .row-flex input { flex: 1; min-width: 140px; }
+
+    .btn {
+      background: var(--accent);
+      color: #0b0d10;
+      border: none;
+      font-family: 'Chakra Petch', sans-serif;
+      font-weight: 600;
+      font-size: 13px;
+      padding: 10px 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: filter 0.2s, transform 0.1s;
+      white-space: nowrap;
+      letter-spacing: 0.3px;
+    }
+    .btn:hover { filter: brightness(1.15); transform: scale(0.98); }
+    .btn.secondary {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--text);
+    }
+    .btn.secondary:hover { border-color: var(--accent); color: var(--accent); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    .divider {
+      height: 1px;
+      background: var(--line);
+      margin: 4px 0;
+    }
+
+    .player-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .player-chip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      padding: 8px 14px;
+      border-radius: 40px;
+      font-size: 13px;
+    }
+    .player-chip button {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0 4px;
+      transition: color 0.2s;
+    }
+    .player-chip button:hover { color: var(--accent); }
+
+    .status {
+      font-size: 12px;
+      color: var(--muted);
+      padding: 4px 0;
+      line-height: 1.5;
+    }
+    .status.ok { color: var(--good); }
+    .status.err { color: var(--accent); }
+    .status.warn { color: var(--warn); }
+
+    .main {
+      flex: 1;
+      padding: 24px 18px 40px;
+      background: var(--bg);
+    }
+
+    .tabs {
+      display: flex;
+      gap: 4px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+    }
+    .tab {
+      font-family: 'Chakra Petch', sans-serif;
+      font-weight: 600;
+      font-size: 14px;
+      padding: 12px 18px 10px;
+      color: var(--muted);
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: color 0.2s, border 0.2s;
+      user-select: none;
+      letter-spacing: 0.2px;
+    }
+    .tab.active {
+      color: var(--text);
+      border-bottom-color: var(--accent);
+    }
+    .tab:hover { color: var(--text); }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .empty-state {
+      color: var(--muted);
+      font-size: 13px;
+      padding: 32px 8px;
+      max-width: 540px;
+      line-height: 1.7;
+    }
+    .empty-state b { color: var(--text); }
+
+    .map-card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      margin-bottom: 24px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+    .map-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      background: var(--panel-2);
+      border-bottom: 1px solid var(--line);
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .map-name {
+      font-family: 'Chakra Petch', sans-serif;
+      font-weight: 700;
+      font-size: 18px;
+      letter-spacing: 0.2px;
+    }
+    .map-card-body { padding: 18px 20px 20px; }
+
+    .comp-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--line);
+      flex-wrap: wrap;
+    }
+    .comp-row:last-child { border-bottom: none; }
+    .comp-count {
+      background: var(--accent-dim);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 2px 10px;
+      border-radius: 30px;
+      min-width: 32px;
+      text-align: center;
+    }
+    .agent-pill {
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      font-size: 12px;
+      padding: 4px 12px;
+      border-radius: 30px;
+      white-space: nowrap;
+    }
+    .comp-teams {
+      font-size: 11px;
+      color: var(--muted);
+      margin-left: auto;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 200px;
+    }
+
+    .fit-block { margin-top: 18px; }
+    .fit-block + .fit-block {
+      margin-top: 28px;
+      padding-top: 20px;
+      border-top: 1px dashed var(--line);
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      margin: 12px 0 6px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+    }
+    table.fit-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      min-width: 400px;
+    }
+    table.fit-table th, table.fit-table td {
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--line);
+      white-space: nowrap;
+    }
+    table.fit-table th {
+      color: var(--muted);
+      font-weight: 500;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      background: var(--panel-2);
+    }
+    table.fit-table tr:last-child td { border-bottom: none; }
+    .wr-cell { font-family: 'IBM Plex Mono', monospace; }
+    .wr-cell.none { color: var(--muted); }
+    .wr-cell.good { color: var(--good); font-weight: 600; }
+    .wr-cell.error { color: var(--warn); font-weight: 600; }
+
+    .legend {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      font-size: 11px;
+      color: var(--muted);
+      margin: 8px 0 4px;
+    }
+    .legend span.dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; vertical-align:middle; }
+    .legend .dot.good { background: var(--good); }
+    .legend .dot.none { background: var(--muted); }
+    .legend .dot.error { background: var(--warn); }
+
+    .assignment {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 14px;
+    }
+    .assignment-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      background: var(--panel-2);
+      padding: 10px 14px;
+      border-radius: 40px;
+      border-left: 4px solid var(--good);
+      flex-wrap: wrap;
+    }
+    .assignment-row.uncertain { border-left-color: var(--warn); }
+    .assignment-row .arrow { color: var(--muted); margin: 0 2px; }
+    .assignment-row .agent { font-weight: 600; color: var(--good); }
+    .assignment-row .note {
+      margin-left: auto;
+      color: var(--muted);
+      font-size: 11px;
+      background: var(--bg);
+      padding: 2px 10px;
+      border-radius: 30px;
+    }
+    .assignment-total {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: var(--panel); }
+    ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 20px; }
+
+    @media (min-width: 820px) {
+      .app { flex-direction: row; }
+      .sidebar {
+        width: 340px;
+        min-width: 300px;
+        height: 100vh;
+        border-right: 1px solid var(--line);
+        border-bottom: none;
+        position: sticky;
+        top: 0;
+        overflow-y: auto;
+        padding: 28px 24px;
+        gap: 22px;
+        box-shadow: none;
+      }
+      .main {
+        padding: 32px 40px 60px;
+      }
+      .comp-teams { max-width: 300px; }
+    }
+
+    @media (max-width: 600px) {
+      .brand { font-size: 18px; }
+      .tab { font-size: 13px; padding: 10px 12px; }
+      .map-card-header { padding: 12px 16px; }
+      .map-card-body { padding: 12px 14px; }
+      .comp-row { gap: 6px; padding: 8px 0; }
+      .agent-pill { font-size: 11px; padding: 3px 8px; }
+      .btn { font-size: 12px; padding: 8px 14px; }
+      .assignment-row { font-size: 12px; padding: 8px 12px; }
+      .row-flex input { min-width: 100px; }
+    }
+
+    @media (max-width: 400px) {
+      .sidebar { padding: 14px 12px; }
+      .main { padding: 14px 10px 30px; }
+      .comp-teams { max-width: 120px; }
+      table.fit-table { font-size: 11px; min-width: 300px; }
+      table.fit-table th, table.fit-table td { padding: 6px 8px; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><span>COMP</span>BOARD<small>vlr.gg × henrik</small></div>
+
+    <div class="field">
+      <label>📁 vlr_event_data.json</label>
+      <input type="file" id="jsonFile" accept=".json">
+      <div class="status" id="jsonStatus">Nenhum arquivo carregado.</div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="status" style="font-size:11px;">🔒 API key configurada no servidor (variável de ambiente), não fica exposta aqui.</div>
+
+    <div class="row-flex">
+      <div class="field" style="flex:2;">
+        <label>Região</label>
+        <select id="region">
+          <option value="br">br</option>
+          <option value="na">na</option>
+          <option value="eu">eu</option>
+          <option value="ap">ap</option>
+          <option value="kr">kr</option>
+          <option value="latam">latam</option>
+        </select>
+      </div>
+      <div class="field" style="flex:2;">
+        <label>Modo</label>
+        <select id="mode">
+          <option value="all">todos</option>
+          <option value="competitive">competitivo</option>
+          <option value="unrated">unrated</option>
+        </select>
+      </div>
+    </div>
+    <div class="row-flex">
+      <div class="field" style="flex:1;">
+        <label>Por página</label>
+        <input type="number" id="size" value="20" min="5" max="50">
+      </div>
+      <div class="field" style="flex:1;">
+        <label>Páginas</label>
+        <input type="number" id="pages" value="2" min="1" max="6">
+      </div>
+    </div>
+    <div class="status" style="font-size:11px;">20 × 2 = até 40 partidas/mapa/jogador. Valores menores = menos chance de rate limit.</div>
+
+    <div class="divider"></div>
+
+    <div class="field">
+      <label>👤 Jogadores (nick#tag)</label>
+      <div class="row-flex">
+        <input type="text" id="newPlayer" placeholder="Kenpachi#coito">
+        <button class="btn" id="addPlayerBtn">+</button>
+      </div>
+      <div class="row-flex" style="margin-top:6px;">
+        <input type="text" id="bulkPlayers" placeholder="cole vários: nick1#tag1,nick2#tag2,...">
+        <button class="btn secondary" id="addBulkBtn">add todos</button>
+      </div>
+    </div>
+    <div class="player-list" id="playerList"></div>
+
+    <button class="btn secondary" id="fetchBtn" style="margin-top:4px;">🚀 Buscar dados do tracker</button>
+    <div class="status" id="fetchStatus"></div>
+  </aside>
+
+  <main class="main">
+    <div class="tabs">
+      <div class="tab active" data-tab="pro">📊 Comps dos pros</div>
+      <div class="tab" data-tab="fit">🎯 Encaixe do time</div>
+    </div>
+
+    <div class="tab-panel active" id="tab-pro">
+      <div class="empty-state" id="proEmpty">
+        Carregue o <b>vlr_event_data.json</b> (gerado pelo scraper) na barra lateral para ver todas as composições usadas pelos times, mapa por mapa.
+      </div>
+      <div id="proContent"></div>
+    </div>
+
+    <div class="tab-panel" id="tab-fit">
+      <div class="empty-state" id="fitEmpty">
+        Carregue o JSON, adicione jogadores (nick#tag) e clique em <b>"Buscar dados do tracker"</b>.
+      </div>
+      <div id="fitContent"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+  // ------------------------------------------------------------
+  // ESTADO
+  // ------------------------------------------------------------
+  let vlrData = null;
+  let compsPorMapa = null;
+  let players = [];
+  let playerStats = {};   // nome -> mapa -> { agente: {games, wins} }
+  let fetchIssues = {};   // nome -> [ "mapa: mensagem de erro", ... ]  (rate limit, 404, etc)
+
+  // ------------------------------------------------------------
+  // UI helpers
+  // ------------------------------------------------------------
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+    });
+  });
+
+  function renderPlayerList() {
+    const el = document.getElementById('playerList');
+    el.innerHTML = '';
+    players.forEach((p, i) => {
+      const chip = document.createElement('div');
+      chip.className = 'player-chip';
+      chip.innerHTML = `<span>${p}</span>`;
+      const btn = document.createElement('button');
+      btn.textContent = '✕';
+      btn.onclick = () => { players.splice(i, 1); renderPlayerList(); };
+      chip.appendChild(btn);
+      el.appendChild(chip);
+    });
+  }
+
+  document.getElementById('addPlayerBtn').onclick = () => {
+    const input = document.getElementById('newPlayer');
+    const val = input.value.trim();
+    if (!val) return;
+    if (!val.includes('#')) { alert('Formato: nick#tag'); return; }
+    players.push(val);
+    input.value = '';
+    renderPlayerList();
+  };
+  document.getElementById('newPlayer').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('addPlayerBtn').click();
+  });
+
+  function parseBulkPlayers(raw){
+    // normaliza vírgulas/quebras de linha pra espaço, depois junta tokens
+    // até formar um "nick#tag" válido — assim nicks com espaço (ex: "DJ BLAKES")
+    // continuam funcionando mesmo colando tudo separado só por espaço.
+    const tokens = raw.replace(/[,\n]+/g, ' ').split(/\s+/).filter(Boolean);
+    const entries = [];
+    let current = '';
+    tokens.forEach(tok => {
+      current = current ? current + ' ' + tok : tok;
+      if (current.includes('#')) {
+        entries.push(current);
+        current = '';
+      }
+    });
+    const leftover = current.trim();
+    return { entries, leftover };
+  }
+
+  document.getElementById('addBulkBtn').onclick = () => {
+    const input = document.getElementById('bulkPlayers');
+    const raw = input.value.trim();
+    if (!raw) return;
+    const { entries, leftover } = parseBulkPlayers(raw);
+    if (leftover) alert('Não consegui interpretar o final: "' + leftover + '" (ficou sem #tag) — foi ignorado.');
+    entries.forEach(p => players.push(p));
+    input.value = '';
+    renderPlayerList();
+  };
+  document.getElementById('bulkPlayers').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('addBulkBtn').click();
+  });
+
+  // ------------------------------------------------------------
+  // AUTO-LOAD: tenta carregar vlr_event_data.json da mesma pasta
+  // ------------------------------------------------------------
+  async function tryAutoLoadData() {
+    try {
+      const resp = await fetch('./vlr_event_data.json');
+      if (!resp.ok) return;
+      const json = await resp.json();
+      vlrData = json;
+      compsPorMapa = allCompsPerMap(vlrData);
+      document.getElementById('jsonStatus').textContent =
+        `✅ Auto-load: ${vlrData.length} registros, ${Object.keys(compsPorMapa).length} mapas.`;
+      document.getElementById('jsonStatus').className = 'status ok';
+      renderProTab();
+    } catch (_) {
+      document.getElementById('jsonStatus').textContent = 'Nenhum arquivo carregado (auto-load falhou).';
+    }
+  }
+  tryAutoLoadData();
+
+  document.getElementById('jsonFile').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        vlrData = JSON.parse(ev.target.result);
+        compsPorMapa = allCompsPerMap(vlrData);
+        document.getElementById('jsonStatus').textContent =
+          `✅ Upload: ${vlrData.length} registros, ${Object.keys(compsPorMapa).length} mapas.`;
+        document.getElementById('jsonStatus').className = 'status ok';
+        renderProTab();
+      } catch (err) {
+        document.getElementById('jsonStatus').textContent = '❌ ' + err.message;
+        document.getElementById('jsonStatus').className = 'status err';
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  function allCompsPerMap(data) {
+    const grouped = {};
+    data.forEach(rec => {
+      const mapName = rec.map_name || 'Desconhecido';
+      const comp = [...(rec.comp || [])].sort();
+      const key = comp.join(',');
+      grouped[mapName] = grouped[mapName] || {};
+      grouped[mapName][key] = grouped[mapName][key] || { comp, teams: new Set() };
+      grouped[mapName][key].teams.add(rec.team || '?');
+    });
+    const result = {};
+    Object.keys(grouped).forEach(mapName => {
+      const items = Object.values(grouped[mapName]);
+      items.sort((a, b) => b.teams.size - a.teams.size);
+      result[mapName] = items;
+    });
+    return result;
+  }
+
+  // ------------------------------------------------------------
+  // ABA "Comps dos pros"
+  // ------------------------------------------------------------
+  function renderProTab() {
+    const content = document.getElementById('proContent');
+    const empty = document.getElementById('proEmpty');
+    if (!compsPorMapa) { empty.style.display = 'block'; content.innerHTML = ''; return; }
+    empty.style.display = 'none';
+
+    let html = '';
+    Object.keys(compsPorMapa).sort().forEach(mapName => {
+      html += `<div class="map-card"><div class="map-card-header"><span class="map-name">${mapName}</span></div><div class="map-card-body">`;
+      compsPorMapa[mapName].forEach(({ comp, teams }) => {
+        html += `<div class="comp-row">
+          <span class="comp-count">${teams.size}x</span>
+          ${comp.map(a => `<span class="agent-pill">${a}</span>`).join('')}
+          <span class="comp-teams">${[...teams].sort().join(', ')}</span>
+        </div>`;
+      });
+      html += `</div></div>`;
+    });
+    content.innerHTML = html;
+  }
+
+  // ------------------------------------------------------------
+  // HENRIKDEV — busca paginada por mapa, com retry em rate limit
+  // ------------------------------------------------------------
+  const MAX_RETRIES = 4;
+
+  async function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+  // busca 1 página via o proxy serverless /api/matches, com retry em 429
+  async function fetchMatchesPageWithRetry(region, name, tag, mode, size, mapName, start, onStatus){
+    let attempt = 0;
+    while (true) {
+      const params = new URLSearchParams({ region, name, tag, size });
+      if (mode && mode !== 'all') params.set('mode', mode);
+      if (mapName) params.set('map', mapName);
+      if (start) params.set('start', start);
+      const url = `/api/matches?${params.toString()}`;
+
+      let resp;
+      try {
+        resp = await fetch(url);
+      } catch (networkErr) {
+        throw { kind: 'network', message: networkErr.message };
+      }
+
+      if (resp.status === 429) {
+        attempt++;
+        if (attempt > MAX_RETRIES) {
+          throw { kind: 'rate_limit', message: 'rate limit persistente (429) após ' + MAX_RETRIES + ' tentativas' };
+        }
+        const wait = 1000 * Math.pow(2, attempt);
+        if (onStatus) onStatus(`rate limit — esperando ${wait/1000}s e tentando de novo (${attempt}/${MAX_RETRIES})...`);
+        await sleep(wait);
+        continue;
+      }
+
+      if (resp.status === 404) {
+        throw { kind: 'not_found', message: 'conta não encontrada (404)' };
+      }
+
+      if (!resp.ok) {
+        const txt = await resp.text().catch(() => '');
+        throw { kind: 'http_error', message: `erro ${resp.status}: ${txt.slice(0,150)}` };
+      }
+
+      const data = await resp.json();
+      return data.data || [];
+    }
+  }
+
+  function extractMapAgentResult(match, name, tag) {
+    const players_ = match.players;
+    if (!players_) return null;
+    const target = players_.find(p =>
+      (p.name || '').toLowerCase() === name.toLowerCase() &&
+      (p.tag || '').toLowerCase() === tag.toLowerCase()
+    );
+    if (!target) return null;
+    const agent = target.agent && target.agent.name;
+    const teamId = target.team_id;
+    if (!agent || !teamId) return null;
+    const mapName = match.metadata && match.metadata.map && match.metadata.map.name;
+    if (!mapName) return null;
+    const teams = match.teams || [];
+    const teamEntry = teams.find(t => t.team_id === teamId);
+    if (!teamEntry || teamEntry.won === undefined || teamEntry.won === null) return null;
+    return { mapName, agent, won: !!teamEntry.won };
+  }
+
+  // busca todas as páginas pra um mapa. Se alguma página falhar de vez
+  // (depois dos retries), marca a busca como "incompleta" em vez de
+  // fingir que o jogador não jogou nada.
+  async function fetchAllMatchesForMap(region, name, tag, mapName, mode, size, maxPages, onStatus){
+    let all = [];
+    let incomplete = false;
+    let lastError = null;
+
+    for (let page = 0; page < maxPages; page++) {
+      const start = page * size;
+      try {
+        const batch = await fetchMatchesPageWithRetry(region, name, tag, mode, size, mapName, start, onStatus);
+        if (batch.length === 0) break;
+        all = all.concat(batch);
+        if (batch.length < size) break;
+      } catch (err) {
+        incomplete = true;
+        lastError = err;
+        break;
+      }
+      await sleep(350);
+    }
+    return { matches: all, incomplete, error: lastError };
+  }
+
+  async function buildAgentStatsForMap(region, name, tag, mapName, mode, size, maxPages, onStatus){
+    const { matches, incomplete, error } = await fetchAllMatchesForMap(region, name, tag, mapName, mode, size, maxPages, onStatus);
+    const stats = {};
+    matches.forEach(match => {
+      const r = extractMapAgentResult(match, name, tag);
+      if (!r) return;
+      stats[r.agent] = stats[r.agent] || { games: 0, wins: 0 };
+      stats[r.agent].games += 1;
+      if (r.won) stats[r.agent].wins += 1;
+    });
+    return { stats, incomplete, error, totalMatches: matches.length };
+  }
+
+  function bestAssignment(playerNames, agents, winrateMatrix) {
+    const n = playerNames.length;
+    if (agents.length < n) return null;
+    let bestScore = -1, bestPerm = null;
+    function permute(arr, k, current, used) {
+      if (current.length === k) {
+        let score = 0;
+        for (let i = 0; i < k; i++) score += winrateMatrix[playerNames[i] + '||' + current[i]] || 0;
+        if (score > bestScore) { bestScore = score; bestPerm = [...current]; }
+        return;
+      }
+      for (let i = 0; i < arr.length; i++) {
+        if (used[i]) continue;
+        used[i] = true;
+        current.push(arr[i]);
+        permute(arr, k, current, used);
+        current.pop();
+        used[i] = false;
+      }
+    }
+    permute(agents, n, [], new Array(agents.length).fill(false));
+    return { perm: bestPerm, score: bestScore };
+  }
+
+  // ------------------------------------------------------------
+  // BOTÃO BUSCAR
+  // ------------------------------------------------------------
+  document.getElementById('fetchBtn').onclick = async () => {
+    const region = document.getElementById('region').value;
+    const mode = document.getElementById('mode').value;
+    const size = parseInt(document.getElementById('size').value, 10) || 20;
+    const maxPages = parseInt(document.getElementById('pages').value, 10) || 2;
+    const statusEl = document.getElementById('fetchStatus');
+
+    if (!compsPorMapa) { statusEl.textContent = 'Carregue o JSON do vlr.gg primeiro.'; statusEl.className = 'status err'; return; }
+    if (players.length === 0) { statusEl.textContent = 'Adicione pelo menos um jogador.'; statusEl.className = 'status err'; return; }
+
+    document.getElementById('fetchBtn').disabled = true;
+    playerStats = {};
+    fetchIssues = {};
+    const mapNames = Object.keys(compsPorMapa);
+
+    for (const pid of players) {
+      const [name, tag] = pid.split('#');
+      playerStats[name] = {};
+      fetchIssues[name] = [];
+
+      for (const mapName of mapNames) {
+        const setStatus = (msg) => { statusEl.textContent = `${name}#${tag} — ${mapName}: ${msg}`; statusEl.className = 'status warn'; };
+        statusEl.textContent = `⏳ ${name}#${tag} — ${mapName} ...`;
+        statusEl.className = 'status';
+
+        const { stats, incomplete, error } = await buildAgentStatsForMap(
+          region, name, tag, mapName, mode, size, maxPages, setStatus
+        );
+        playerStats[name][mapName] = stats;
+
+        if (incomplete) {
+          const msg = error ? `${mapName}: ${error.message}` : `${mapName}: busca incompleta`;
+          fetchIssues[name].push(msg);
+        }
+        if (error && error.kind === 'not_found') {
+          // conta não existe — não adianta insistir nos outros mapas desse jogador
+          fetchIssues[name].push(`${mapName}: conta não encontrada — pulando resto dos mapas`);
+          break;
+        }
+        await sleep(150);
+      }
+    }
+
+    const totalIssues = Object.values(fetchIssues).reduce((a, arr) => a + arr.length, 0);
+    if (totalIssues > 0) {
+      statusEl.textContent = `⚠️ Dados carregados, mas ${totalIssues} busca(s) tiveram problema (rate limit / erro). Veja os avisos na aba de encaixe.`;
+      statusEl.className = 'status warn';
+    } else {
+      statusEl.textContent = `✅ Dados de ${players.length} jogador(es) em ${mapNames.length} mapa(s) carregados sem erros.`;
+      statusEl.className = 'status ok';
+    }
+    document.getElementById('fetchBtn').disabled = false;
+    renderFitTab();
+  };
+
+  // ------------------------------------------------------------
+  // ABA "Comps + encaixe"
+  // ------------------------------------------------------------
+  function renderFitTab() {
+    const content = document.getElementById('fitContent');
+    const empty = document.getElementById('fitEmpty');
+    if (!compsPorMapa || players.length === 0 || Object.keys(playerStats).length === 0) {
+      empty.style.display = 'block';
+      content.innerHTML = '';
+      return;
+    }
+    empty.style.display = 'none';
+
+    const playerNames = players.map(p => p.split('#')[0]);
+    let html = '';
+
+    // avisos de fidelidade dos dados (rate limit, contas não encontradas, etc)
+    const anyIssues = Object.values(fetchIssues).some(arr => arr.length > 0);
+    if (anyIssues) {
+      html += `<div class="map-card" style="border-color: var(--warn);">
+        <div class="map-card-header"><span class="map-name" style="color:var(--warn);">⚠️ Avisos de busca</span></div>
+        <div class="map-card-body">`;
+      Object.entries(fetchIssues).forEach(([name, issues]) => {
+        if (issues.length === 0) return;
+        html += `<div class="comp-row"><strong>${name}</strong></div>`;
+        issues.forEach(msg => {
+          html += `<div class="comp-row" style="color:var(--warn); font-size:12px;">— ${msg}</div>`;
+        });
+      });
+      html += `<div class="status" style="margin-top:8px;">Células marcadas em laranja na tabela abaixo tiveram a busca incompleta — não confie nelas como "0% garantido", pode ser que faltem partidas reais.</div>`;
+      html += `</div></div>`;
+    }
+
+    Object.keys(compsPorMapa).sort().forEach(mapName => {
+      html += `<div class="map-card"><div class="map-card-header"><span class="map-name">${mapName}</span></div><div class="map-card-body">`;
+
+      compsPorMapa[mapName].forEach(({ comp, teams }) => {
+        const winrateMatrix = {};
+        const gamesMatrix = {};
+        const errorMatrix = {};
+        playerNames.forEach(name => {
+          const mapStats = (playerStats[name] && playerStats[name][mapName]) || {};
+          const hadIssue = (fetchIssues[name] || []).some(msg => msg.startsWith(mapName + ':'));
+          comp.forEach(agent => {
+            const d = mapStats[agent] || { games: 0, wins: 0 };
+            winrateMatrix[name + '||' + agent] = d.games > 0 ? d.wins / d.games : 0;
+            gamesMatrix[name + '||' + agent] = d.games;
+            errorMatrix[name + '||' + agent] = hadIssue;
+          });
+        });
+
+        html += `<div class="fit-block">
+          <div class="comp-row" style="border-bottom:none; padding-top:0;">
+            <span class="comp-count">${teams.size}x</span>
+            ${comp.map(a => `<span class="agent-pill">${a}</span>`).join('')}
+            <span class="comp-teams">${[...teams].sort().join(', ')}</span>
+          </div>
+
+          <div class="table-wrap">
+            <table class="fit-table">
+              <thead><tr><th>Jogador</th>${comp.map(a => `<th>${a}</th>`).join('')}</tr></thead>
+              <tbody>`;
+        playerNames.forEach(name => {
+          html += `<tr><td><strong>${name}</strong></td>`;
+          comp.forEach(agent => {
+            const g = gamesMatrix[name + '||' + agent];
+            const wr = winrateMatrix[name + '||' + agent];
+            const hadIssue = errorMatrix[name + '||' + agent];
+            if (hadIssue) {
+              html += `<td class="wr-cell error" title="busca incompleta nesse mapa">⚠ ${g > 0 ? Math.round(wr*100)+'% ('+g+'j, parcial)' : 'incompleto'}</td>`;
+            } else if (g > 0) {
+              const cls = wr >= 0.5 ? 'good' : '';
+              html += `<td class="wr-cell ${cls}">${Math.round(wr * 100)}% (${g}j)</td>`;
+            } else {
+              html += `<td class="wr-cell none">—</td>`;
+            }
+          });
+          html += `</tr>`;
+        });
+        html += `</tbody></table></div>`;
+
+        const result = bestAssignment(playerNames, comp, winrateMatrix);
+        if (result && result.perm) {
+          html += `<div class="assignment">`;
+          playerNames.forEach((name, i) => {
+            const agent = result.perm[i];
+            const g = gamesMatrix[name + '||' + agent];
+            const wr = winrateMatrix[name + '||' + agent];
+            const hadIssue = errorMatrix[name + '||' + agent];
+            const note = hadIssue ? 'dado incompleto' : (g > 0 ? `${Math.round(wr*100)}% em ${g} jogo(s)` : 'sem histórico');
+            html += `<div class="assignment-row ${hadIssue ? 'uncertain' : ''}">
+              <span>${name}</span><span class="arrow">→</span><span class="agent">${agent}</span>
+              <span class="note">${note}</span>
+            </div>`;
+          });
+          html += `<div class="assignment-total">🏆 win rate total do encaixe: ${Math.round(result.score * 100)}%</div>`;
+          html += `</div>`;
+        }
+
+        html += `</div>`;
+      });
+
+      html += `</div></div>`;
+    });
+
+    content.innerHTML = html;
+  }
+</script>
+</body>
+</html>
