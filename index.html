@@ -242,6 +242,26 @@
       border-bottom: 1px solid var(--line);
       flex-wrap: wrap;
       gap: 6px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .map-card-header:hover { background: #222833; }
+    .map-card.collapsed .map-card-header { border-bottom: none; }
+    .map-card.collapsed .map-card-body { display: none; }
+    .map-card-header .chevron {
+      color: var(--muted);
+      font-size: 12px;
+      transition: transform 0.15s;
+      margin-left: 8px;
+    }
+    .map-card.collapsed .chevron { transform: rotate(-90deg); }
+    .map-header-left { display:flex; align-items:center; gap:10px; }
+    .map-summary { font-size: 11px; color: var(--muted); }
+
+    .accordion-controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
     }
     .map-name {
       font-family: 'Chakra Petch', sans-serif;
@@ -497,12 +517,20 @@
       <div class="empty-state" id="proEmpty">
         Carregue o <b>vlr_event_data.json</b> (gerado pelo scraper) na barra lateral para ver todas as composições usadas pelos times, mapa por mapa.
       </div>
+      <div class="accordion-controls" id="proAccordionControls" style="display:none;">
+        <button class="btn secondary" onclick="setAllCollapsed('proContent', false)">Abrir tudo</button>
+        <button class="btn secondary" onclick="setAllCollapsed('proContent', true)">Fechar tudo</button>
+      </div>
       <div id="proContent"></div>
     </div>
 
     <div class="tab-panel" id="tab-fit">
       <div class="empty-state" id="fitEmpty">
         Carregue o JSON, adicione jogadores (nick#tag) e clique em <b>"Buscar dados do tracker"</b>.
+      </div>
+      <div class="accordion-controls" id="fitAccordionControls" style="display:none;">
+        <button class="btn secondary" onclick="setAllCollapsed('fitContent', false)">Abrir tudo</button>
+        <button class="btn secondary" onclick="setAllCollapsed('fitContent', true)">Fechar tudo</button>
       </div>
       <div id="fitContent"></div>
     </div>
@@ -531,6 +559,23 @@
     });
   });
 
+  // ------------------------------------------------------------
+  // persistência local — lista de jogadores fica salva no navegador
+  // ------------------------------------------------------------
+  const STORAGE_KEY = 'compboard_players';
+
+  function savePlayers(){
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(players)); }
+    catch(e) { /* localStorage indisponível — sem problema, só não persiste */ }
+  }
+
+  function loadPlayers(){
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) players = JSON.parse(raw);
+    } catch(e) { players = []; }
+  }
+
   function renderPlayerList() {
     const el = document.getElementById('playerList');
     el.innerHTML = '';
@@ -540,11 +585,14 @@
       chip.innerHTML = `<span>${p}</span>`;
       const btn = document.createElement('button');
       btn.textContent = '✕';
-      btn.onclick = () => { players.splice(i, 1); renderPlayerList(); };
+      btn.onclick = () => { players.splice(i, 1); savePlayers(); renderPlayerList(); };
       chip.appendChild(btn);
       el.appendChild(chip);
     });
   }
+
+  loadPlayers();
+  renderPlayerList();
 
   document.getElementById('addPlayerBtn').onclick = () => {
     const input = document.getElementById('newPlayer');
@@ -552,6 +600,7 @@
     if (!val) return;
     if (!val.includes('#')) { alert('Formato: nick#tag'); return; }
     players.push(val);
+    savePlayers();
     input.value = '';
     renderPlayerList();
   };
@@ -584,6 +633,7 @@
     const { entries, leftover } = parseBulkPlayers(raw);
     if (leftover) alert('Não consegui interpretar o final: "' + leftover + '" (ficou sem #tag) — foi ignorado.');
     entries.forEach(p => players.push(p));
+    savePlayers();
     input.value = '';
     renderPlayerList();
   };
@@ -651,18 +701,44 @@
   }
 
   // ------------------------------------------------------------
+  // accordion: abrir/fechar cards de mapa
+  // ------------------------------------------------------------
+  window.setAllCollapsed = function(containerId, collapsed){
+    document.querySelectorAll('#' + containerId + ' .map-card').forEach(card => {
+      card.classList.toggle('collapsed', collapsed);
+    });
+  };
+
+  function toggleCard(headerEl){
+    headerEl.closest('.map-card').classList.toggle('collapsed');
+  }
+
+  // ------------------------------------------------------------
   // ABA "Comps dos pros"
   // ------------------------------------------------------------
   function renderProTab() {
     const content = document.getElementById('proContent');
     const empty = document.getElementById('proEmpty');
-    if (!compsPorMapa) { empty.style.display = 'block'; content.innerHTML = ''; return; }
+    const controls = document.getElementById('proAccordionControls');
+    if (!compsPorMapa) { empty.style.display = 'block'; content.innerHTML = ''; controls.style.display = 'none'; return; }
     empty.style.display = 'none';
+    controls.style.display = 'flex';
 
     let html = '';
-    Object.keys(compsPorMapa).sort().forEach(mapName => {
-      html += `<div class="map-card"><div class="map-card-header"><span class="map-name">${mapName}</span></div><div class="map-card-body">`;
-      compsPorMapa[mapName].forEach(({ comp, teams }) => {
+    Object.keys(compsPorMapa).sort().forEach((mapName, idx) => {
+      const compList = compsPorMapa[mapName];
+      const totalTeams = new Set(compList.flatMap(c => [...c.teams])).size;
+      const collapsedClass = idx === 0 ? '' : 'collapsed'; // deixa o primeiro aberto, resto fechado
+      html += `<div class="map-card ${collapsedClass}">
+        <div class="map-card-header" onclick="toggleCard(this)">
+          <div class="map-header-left">
+            <span class="map-name">${mapName}</span>
+            <span class="map-summary">${compList.length} comp(s) distintas · ${totalTeams} time(s)</span>
+          </div>
+          <span class="chevron">▼</span>
+        </div>
+        <div class="map-card-body">`;
+      compList.forEach(({ comp, teams }) => {
         html += `<div class="comp-row">
           <span class="comp-count">${teams.size}x</span>
           ${comp.map(a => `<span class="agent-pill">${a}</span>`).join('')}
@@ -868,12 +944,15 @@
   function renderFitTab() {
     const content = document.getElementById('fitContent');
     const empty = document.getElementById('fitEmpty');
+    const controls = document.getElementById('fitAccordionControls');
     if (!compsPorMapa || players.length === 0 || Object.keys(playerStats).length === 0) {
       empty.style.display = 'block';
       content.innerHTML = '';
+      controls.style.display = 'none';
       return;
     }
     empty.style.display = 'none';
+    controls.style.display = 'flex';
 
     const playerNames = players.map(p => p.split('#')[0]);
     let html = '';
@@ -882,7 +961,7 @@
     const anyIssues = Object.values(fetchIssues).some(arr => arr.length > 0);
     if (anyIssues) {
       html += `<div class="map-card" style="border-color: var(--warn);">
-        <div class="map-card-header"><span class="map-name" style="color:var(--warn);">⚠️ Avisos de busca</span></div>
+        <div class="map-card-header" onclick="toggleCard(this)"><span class="map-name" style="color:var(--warn);">⚠️ Avisos de busca</span><span class="chevron">▼</span></div>
         <div class="map-card-body">`;
       Object.entries(fetchIssues).forEach(([name, issues]) => {
         if (issues.length === 0) return;
@@ -895,10 +974,20 @@
       html += `</div></div>`;
     }
 
-    Object.keys(compsPorMapa).sort().forEach(mapName => {
-      html += `<div class="map-card"><div class="map-card-header"><span class="map-name">${mapName}</span></div><div class="map-card-body">`;
+    Object.keys(compsPorMapa).sort().forEach((mapName, idx) => {
+      const compList = compsPorMapa[mapName];
+      const collapsedClass = idx === 0 ? '' : 'collapsed';
+      html += `<div class="map-card ${collapsedClass}">
+        <div class="map-card-header" onclick="toggleCard(this)">
+          <div class="map-header-left">
+            <span class="map-name">${mapName}</span>
+            <span class="map-summary">${compList.length} comp(s)</span>
+          </div>
+          <span class="chevron">▼</span>
+        </div>
+        <div class="map-card-body">`;
 
-      compsPorMapa[mapName].forEach(({ comp, teams }) => {
+      compList.forEach(({ comp, teams }) => {
         const winrateMatrix = {};
         const gamesMatrix = {};
         const errorMatrix = {};
